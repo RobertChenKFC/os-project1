@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+import os.path
+import sys
+
+def GetPolicyTestnames(policy):
+  testnames = []
+  i = 1
+  while True:
+    testname = f'{policy}_{i}'
+    inputFile = f'test/{testname}.txt'
+    if os.path.exists(inputFile):
+      testnames.append(testname)
+    else:
+      break
+    i += 1
+  return testnames
+
+def TryOption(option):
+  try:
+    sys.argv.remove(option)
+    return True
+  except:
+    return False
+
+# parse options
+output = TryOption('-o')
+measureTime = TryOption('-t')
+
+# get all test names
+testnames = []
+if len(sys.argv) == 1:
+  runAllTests = True
+  policies = ['FIFO', 'RR', 'SJF', 'PSJF']
+  for policy in policies:
+    testnames.extend(GetPolicyTestnames(policy))
+else:
+  for test in sys.argv[1:]:
+    if test[-1].isdigit():
+      testnames.append(test)
+    else:
+      testnames.extend(GetPolicyTestnames(test))
+
+print(f'tests: {testnames}')
+
+# run all tests
+for testname in testnames:
+  inputFile = f'test/{testname}.txt'
+  if output:
+    cmd = (f'sudo dmesg -c > /dev/null && '
+         + f'sudo ./main < {inputFile} && '
+         + f'dmesg | grep Project1')
+  else:
+    cmd = (f'sudo dmesg -c > /dev/null && '
+         + f'sudo ./main < {inputFile} '
+         + f'> output/{testname}_stdout.txt && '
+         + f'dmesg | grep Project1 > output/{testname}_dmesg.txt')
+  print(cmd)
+  os.system(cmd)
+
+# run time measurement
+if measureTime:
+  if output:
+    cmd = ('sudo dmesg -c > /dev/null && '
+         + 'sudo ./main < test/TIME_MEASUREMENT.txt && '
+         + 'dmesg | grep Project1')
+  else:
+    cmd = ('sudo dmesg -c > /dev/null && '
+         + 'sudo ./main < test/TIME_MEASUREMENT.txt '
+         + '> output/TIME_MEASUREMENT_stdout.txt && '
+         + 'dmesg | grep Project1 > output/TIME_MEASUREMENT_dmesg.txt')
+  print(cmd)
+  os.system(cmd)
+

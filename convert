@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import sys
+import os.path
+import re
+
+start = 1
+for arg in sys.argv:
+  if arg == '-a':
+    start = 0
+
+with open('output/TIME_MEASUREMENT_dmesg.txt') as f:
+  time = [float(x) for i, x in enumerate(re.sub(r'\[.*\]', '', f.read())
+          .split()) if i % 3 != 0]
+  i = 0
+  delta = 0
+  while i < len(time):
+    delta += time[i + 1] - time[i]
+    i += 2
+  unit = delta / 500 / (len(time) / 2)
+
+print(f'time unit: {unit * 1000}ms\n')
+print(f'rr time slice: {unit * 500 * 1000}ms\n')
+
+policies = ['FIFO', 'RR', 'SJF', 'PSJF']
+for policy in policies:
+  i = start
+  while True:
+    testname = f'{policy}_{i}'
+    pidFile = f'output/{testname}_stdout.txt'
+    timesFile = f'output/{testname}_dmesg.txt'
+    if os.path.exists(pidFile):
+      pidToName = {}
+      with open(pidFile, 'r') as f:
+        f = f.read().split()
+        j = 0
+        while j < len(f):
+          pidToName[f[j + 1]] = f[j]
+          j += 2
+      with open(timesFile, 'r') as f:
+        f = re.sub(r'\[.*\]', '', f.read()).split()
+        times = [float(x) for i, x in enumerate(f) if i % 3 != 0]
+        names = [pidToName[x] for i, x in enumerate(f) if i % 3 == 0]
+        initTime = min(times)
+        f = [round((x - initTime) / unit) for x in times]
+        j = 0
+        times = {}
+        while j < len(f):
+          times[names[j // 2]] = (f[j], f[j + 1])
+          j += 2
+      print(f'{testname}:')
+      with open(f'test/{testname}.txt') as f:
+        f = f.read()
+        if f[-1] == '\n':
+          f = f[:-1]
+        print(f)
+      for name in sorted(times):
+        print(f'{name}: {times[name]}')
+      print('\n')
+      i += 1
+    else:
+      break
+
